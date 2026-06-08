@@ -1,11 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Jun  8 15:45:40 2026
-
-@author: ASUS
-"""
-
-# -*- coding: utf-8 -*-
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,18 +18,24 @@ plt.rcParams['axes.unicode_minus'] = False
 # ------------------- 页面配置 -------------------
 st.set_page_config(page_title="TDOA双曲线定位", layout="wide")
 
-# 修正标题被遮住的问题：增加上边距和行高
+# CSS：标题居中、紧凑、图形上移
 st.markdown("""
 <style>
+    .main .block-container {
+        padding-top: 1.5rem !important;
+    }
     h1 {
         font-size: 1.8rem !important;
-        margin-top: 0.5rem !important;
+        text-align: center !important;
+        margin-top: 0rem !important;
         margin-bottom: 0.2rem !important;
         line-height: 1.2 !important;
     }
-    .block-container {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0rem !important;
+    .stMarkdown p {
+        text-align: center !important;
+        margin-top: 0rem;
+        margin-bottom: 0.5rem;
+        line-height: 1.2 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -94,7 +93,7 @@ def find_hyperbola_intersection(s1, s2, s3, delta_d12, delta_d13, bounds=(-20,20
                 best_x = res.x
     return best_x
 
-# ------------------- 计算距离差 -------------------
+# ------------------- 计算 -------------------
 s1 = np.array([x1, y1])
 s2 = np.array([x2, y2])
 s3 = np.array([x3, y3])
@@ -112,7 +111,7 @@ ax.set_ylabel("y (km)")
 ax.grid(True, alpha=0.3)
 ax.set_aspect('equal')
 
-# 侦察站
+# 1. 侦察站（蓝色实心圆）
 ax.plot(x1, y1, 'o', color='blue', markersize=10)
 ax.plot(x2, y2, 'o', color='blue', markersize=10)
 ax.plot(x3, y3, 'o', color='blue', markersize=10)
@@ -120,11 +119,11 @@ ax.text(x1, y1-1.2, "侦察站1", color='blue', fontsize=10, ha='center', weight
 ax.text(x2, y2-1.2, "侦察站2", color='blue', fontsize=10, ha='center', weight='bold')
 ax.text(x3, y3-1.2, "侦察站3", color='blue', fontsize=10, ha='center', weight='bold')
 
-# 真实目标
-ax.plot(true_x, true_y, 'r*', markersize=18, label='真实目标')
-ax.text(true_x + 1.0, true_y + 1.2, "目标点", color='red', fontsize=10, ha='left', weight='bold')
+# 2. 真实目标（红色五角星，放大）
+ax.plot(true_x, true_y, 'r*', markersize=22, label='_nolegend_')
+ax.text(true_x + 1.2, true_y + 1.5, "目标点", color='red', fontsize=11, ha='left', weight='bold')
 
-# 绘制双曲线
+# 3. 绘制双曲线（红色、绿色实线）
 grid_res = 100
 x_grid = np.linspace(-20, 20, grid_res)
 y_grid = np.linspace(-20, 20, grid_res)
@@ -136,24 +135,27 @@ dist_diff13 = np.hypot(X - s3[0], Y - s3[1]) - np.hypot(X - s1[0], Y - s1[1])
 ax.contour(X, Y, dist_diff12, levels=[delta_d12], colors='red', linewidths=2, linestyles='-')
 ax.contour(X, Y, dist_diff13, levels=[delta_d13], colors='green', linewidths=2, linestyles='-')
 
-# 图例
-ax.plot([], [], color='red', linewidth=2, label=f'双曲线 (站1-站2) 距离差 = {delta_d12:.2f} km')
-ax.plot([], [], color='green', linewidth=2, label=f'双曲线 (站1-站3) 距离差 = {delta_d13:.2f} km')
-
-# 估计点（紫色）
+# 4. 估计点（紫色实心圆）
 est_pos = find_hyperbola_intersection(s1, s2, s3, delta_d12, delta_d13)
 if est_pos is not None:
-    ax.plot(est_pos[0], est_pos[1], 'o', color='purple', markersize=10, label='TDOA估计位置')
-    ax.text(est_pos[0] - 1.5, est_pos[1] - 1.2, "估计点", color='purple', fontsize=10, ha='center', weight='bold')
+    ax.plot(est_pos[0], est_pos[1], 'o', color='purple', markersize=10, label='_nolegend_')
+    ax.text(est_pos[0] - 1.8, est_pos[1] - 1.5, "估计点", color='purple', fontsize=10, ha='center', weight='bold')
     error = np.hypot(est_pos[0]-true_x, est_pos[1]-true_y)
     st.sidebar.metric("📍 定位误差", f"{error:.2f} km")
 else:
     st.sidebar.warning("⚠️ 未找到交点，请调整站址避免三站共线")
 
+# 5. 图例（统一大小）
+ax.plot([], [], color='red', linewidth=2, label=f'双曲线 (站1-站2) Δd = {delta_d12:.2f} km')
+ax.plot([], [], color='green', linewidth=2, label=f'双曲线 (站1-站3) Δd = {delta_d13:.2f} km')
+ax.plot([], [], 'bo', label='侦察站')
+ax.plot([], [], 'r*', markersize=10, label='目标点')
+ax.plot([], [], 'o', color='purple', markersize=8, label='TDOA估计点')
 ax.legend(loc='upper right')
+
 st.pyplot(fig, use_container_width=True)
 
-# 教学说明（已删除几何稀释效应）
+# 教学说明（可折叠）
 with st.expander("📖 TDOA双曲线定位原理（点击展开）"):
     st.markdown("""
     - **到达时间差（TDOA）** → **距离差**：`Δd = c · Δt`（本演示中设 `c=1 km/μs` 简化）。  
@@ -162,7 +164,7 @@ with st.expander("📖 TDOA双曲线定位原理（点击展开）"):
     - **操作提示**：拖动左侧滑块调整侦察站或目标位置，观察双曲线实时变化，估计点（紫色圆）应逼近真实目标（红色五角星）。
     """)
 
-# 注释掉侧边栏的访问链接部分
+# 注释掉侧边栏链接
 # st.sidebar.markdown("---")
 # st.sidebar.subheader("📱 学生扫码访问")
 # app_url = "https://你的应用名.streamlit.app"
