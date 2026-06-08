@@ -140,7 +140,7 @@ ax.plot([], [], color='green', linewidth=2, label=f'双曲线 (站1-站3) 距离
 # 估计点：标注放在左下方
 est_pos = find_hyperbola_intersection(s1, s2, s3, delta_d12, delta_d13)
 if est_pos is not None:
-    ax.plot(est_pos[0], est_pos[1], 'o', color='orange', markersize=10, label='TDOA估计位置')
+    ax.plot(est_pos[0], est_pos[1], 'o', color='green', markersize=10, label='TDOA估计位置')
     ax.text(est_pos[0] - 1.5, est_pos[1] - 1.2, "估计点", color='orange', fontsize=10, ha='center', weight='bold')
     error = np.hypot(est_pos[0]-true_x, est_pos[1]-true_y)
     st.sidebar.metric("📍 定位误差", f"{error:.2f} km")
@@ -156,8 +156,7 @@ with st.expander("📖 TDOA双曲线定位原理（点击展开）"):
     - **到达时间差（TDOA）** → **距离差**：`Δd = c · Δt`（本演示中设 `c=1 km/μs` 简化）。  
     - **双曲线定义**：到两个固定点距离差为恒定值的所有点构成一条双曲线。  
     - **两条双曲线**（来自站1-站2 和 站1-站3）的交点就是目标位置。  
-    - **操作提示**：拖动左侧滑块调整侦察站或目标位置，观察双曲线实时变化，估计点（橙色圆）应逼近真实目标（红色五角星）。  
-    - **几何稀释效应**：尝试让三个站近似共线（如将站3 y坐标设为0），双曲线将变得几乎平行，交点误差急剧增大。
+    - **操作提示**：拖动左侧滑块调整侦察站或目标位置，观察双曲线实时变化，估计点（绿色圆）应逼近真实目标（红色五角星）。  
     """)
 
 st.sidebar.markdown("---")
