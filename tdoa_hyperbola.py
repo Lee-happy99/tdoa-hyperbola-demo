@@ -15,20 +15,28 @@ else:
     st.warning("字体文件 simhei.ttf 未找到，将使用默认字体（可能显示方块）")
 plt.rcParams['axes.unicode_minus'] = False
 
-# ------------------- 页面配置（优化标题样式，解决遮挡和间距问题） -------------------
-st.set_page_config(page_title="TDOA双曲线定位", layout="wide")
+# ------------------- 页面配置（强制侧边栏展开，优化标题样式） -------------------
+st.set_page_config(
+    page_title="TDOA双曲线定位",
+    layout="wide",
+    initial_sidebar_state="expanded"   # 确保侧边栏默认展开
+)
 
 st.markdown("""
 <style>
-    /* 移除默认的header顶部留白，让标题紧贴顶部 */
+    /* 只隐藏顶部栏的菜单按钮等，但保留侧边栏不受影响 */
     header {
         visibility: hidden;
         height: 0;
     }
+    /* 确保侧边栏容器正常显示 */
+    [data-testid="stSidebar"] {
+        visibility: visible;
+        height: 100%;
+    }
     .main > div {
         padding-top: 0rem;
     }
-    /* 标题居中，紧凑，完整显示 */
     h1 {
         font-size: 1.8rem !important;
         text-align: center !important;
@@ -37,7 +45,6 @@ st.markdown("""
         line-height: 1.2 !important;
         font-weight: bold;
     }
-    /* 副标题（markdown段落）居中，紧凑 */
     .stMarkdown p {
         text-align: center !important;
         margin-top: 0rem !important;
@@ -45,7 +52,6 @@ st.markdown("""
         line-height: 1.2 !important;
         font-size: 1rem;
     }
-    /* 主容器顶部内边距减小 */
     .block-container {
         padding-top: 0.2rem !important;
         padding-bottom: 0rem !important;
@@ -173,9 +179,3 @@ with st.expander("📖 TDOA双曲线定位原理（点击展开）"):
     - **两条双曲线**（来自站1-站2 和 站1-站3）的交点就是目标位置。  
     - **操作提示**：拖动左侧滑块调整侦察站或目标位置，观察双曲线实时变化，估计点（紫色圆）应逼近真实目标（红色五角星）。
     """)
-
-# 注释掉侧边栏的访问链接部分
-# st.sidebar.markdown("---")
-# st.sidebar.subheader("📱 学生扫码访问")
-# app_url = "https://你的应用名.streamlit.app"
-# st.sidebar.info(f"复制此链接生成二维码：\n\n`{app_url}`")
