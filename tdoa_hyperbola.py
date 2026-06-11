@@ -1,7 +1,15 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Mon Jun  8 15:45:40 2026
+
+@author: ASUS
+"""
+
+# -*- coding: utf-8 -*-
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.optimize import minimize
 import matplotlib.font_manager as fm
 import os
 
@@ -15,162 +23,147 @@ else:
 plt.rcParams['axes.unicode_minus'] = False
 
 # ------------------- 页面配置 -------------------
-st.set_page_config(page_title="双曲线几何定义与TDOA基础", layout="wide")
+st.set_page_config(page_title="TDOA双曲线定位", layout="wide")
+
+# 修正标题被遮住的问题：增加上边距和行高
 st.markdown("""
 <style>
-    .main .block-container { padding-top: 1.5rem !important; }
-    h1 { font-size: 1.8rem !important; text-align: center !important; margin: 0rem 0rem 0.2rem 0rem; line-height: 1.2; }
-    .stMarkdown p { text-align: center !important; margin-top: 0rem; margin-bottom: 0.5rem; line-height: 1.2; }
+    h1 {
+        font-size: 1.8rem !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.2rem !important;
+        line-height: 1.2 !important;
+    }
+    .block-container {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0rem !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📐 双曲线几何定义：到两定点距离差为常数")
-st.markdown("**调整距离差常数 → 双曲线实时变化；拖动绘制进度 → 观察目标满足 |PF₁ - PF₂| = 常数**")
+st.title("📡 TDOA时差定位：双曲线相交锁定目标")
+st.markdown("**拖动左侧滑块调整三个侦察站的位置，观察双曲线如何实时变化并交于目标点**")
 
-# ------------------- 侧边栏参数 -------------------
-st.sidebar.header("🔧 参数设置")
-distance_diff = st.sidebar.slider("距离差常数 |PF₁ - PF₂| (km)", 0.5, 12.0, 6.0, 0.1)
-st.sidebar.markdown("---")
+# ------------------- 侧边栏（紧凑布局） -------------------
+st.sidebar.header("📍 侦察站坐标 (km)")
 
-# 左侧焦点（站2，F₂）
 col1, col2 = st.sidebar.columns(2)
 with col1:
-    x2 = st.slider("站2 (F₂) x", -10.0, 10.0, -5.0, 0.5)
+    x1 = st.slider("站1 x", -20.0, 20.0, -8.0, 0.5)
 with col2:
-    y2 = st.slider("站2 (F₂) y", -10.0, 10.0, 0.0, 0.5)
+    y1 = st.slider("站1 y", -20.0, 20.0, 0.0, 0.5)
 
-# 右侧焦点（站1，F₁）
 col1, col2 = st.sidebar.columns(2)
 with col1:
-    x1 = st.slider("站1 (F₁) x", -10.0, 10.0, 5.0, 0.5)
+    x2 = st.slider("站2 x", -20.0, 20.0, 8.0, 0.5)
 with col2:
-    y1 = st.slider("站1 (F₁) y", -10.0, 10.0, 0.0, 0.5)
+    y2 = st.slider("站2 y", -20.0, 20.0, 0.0, 0.5)
+
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    x3 = st.slider("站3 x", -20.0, 20.0, 0.0, 0.5)
+with col2:
+    y3 = st.slider("站3 y", -20.0, 20.0, 12.0, 0.5)
 
 st.sidebar.markdown("---")
-progress = st.sidebar.slider("绘制进度 (t 参数)", 0.0, 1.0, 0.0, 0.01, help="0→1 逐步画出双曲线上的点")
-show_axes = st.sidebar.checkbox("显示实轴和虚轴", value=True)
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    true_x = st.slider("🎯 真实目标 x", -20.0, 20.0, 5.0, 0.5)
+with col2:
+    true_y = st.slider("🎯 真实目标 y", -20.0, 20.0, 5.0, 0.5)
 
-# ------------------- 几何计算 -------------------
-F1 = np.array([x1, y1])   # 右焦点（站1）
-F2 = np.array([x2, y2])   # 左焦点（站2）
-center = (F1 + F2) / 2
-c = np.linalg.norm(F2 - F1) / 2
-a = distance_diff / 2
-valid = a < c and a > 0
+# ------------------- 辅助函数 -------------------
+def distance(p1, p2):
+    return np.hypot(p1[0]-p2[0], p1[1]-p2[1])
 
-direction = (F2 - F1) / (2 * c) if c > 0 else np.array([1, 0])
-rot = np.array([[direction[0], -direction[1]],
-                [direction[1],  direction[0]]])
+def tdoa_dist_diff(target, s1, s2):
+    return distance(target, s2) - distance(target, s1)
 
-def std_to_world(points_std):
-    return (rot @ points_std.T).T + center
+def hyperbola_equation(p, s1, s2, delta_d):
+    return abs(distance(p, s2) - distance(p, s1) - delta_d)
 
-if valid:
-    b = np.sqrt(c**2 - a**2)
-    t_max = 3.0
-    t_vals = np.linspace(-t_max, t_max, 400)
-    x_right = a * np.cosh(t_vals)
-    y_right = b * np.sinh(t_vals)
-    right_branch = std_to_world(np.vstack((x_right, y_right)).T)
-    x_left = -a * np.cosh(t_vals)
-    y_left = b * np.sinh(t_vals)
-    left_branch = std_to_world(np.vstack((x_left, y_left)).T)
-    
-    n = len(t_vals)
-    idx = int(n * progress)
-    right_part = right_branch[:idx]
-    left_part = left_branch[:idx]
-    
-    if progress > 0:
-        t_curr = t_vals[idx-1] if idx>0 else t_vals[0]
-        p_std = np.array([a * np.cosh(t_curr), b * np.sinh(t_curr)])
-        P = std_to_world(p_std.reshape(1,2))[0]
-        d1 = np.linalg.norm(P - F1)
-        d2 = np.linalg.norm(P - F2)
-        actual_diff = abs(d1 - d2)
-    else:
-        P = None
-        actual_diff = None
-else:
-    b = None
-    right_branch = left_branch = right_part = left_part = None
-    P = None
+def find_hyperbola_intersection(s1, s2, s3, delta_d12, delta_d13, bounds=(-20,20)):
+    def objective(p):
+        return hyperbola_equation(p, s1, s2, delta_d12) + hyperbola_equation(p, s1, s3, delta_d13)
+    best_x, best_val = None, np.inf
+    for x0 in np.linspace(bounds[0], bounds[1], 15):
+        for y0 in np.linspace(bounds[0], bounds[1], 15):
+            res = minimize(objective, [x0, y0], bounds=[bounds, bounds], method='L-BFGS-B')
+            if res.fun < best_val:
+                best_val = res.fun
+                best_x = res.x
+    return best_x
+
+# ------------------- 计算距离差 -------------------
+s1 = np.array([x1, y1])
+s2 = np.array([x2, y2])
+s3 = np.array([x3, y3])
+target_true = np.array([true_x, true_y])
+
+delta_d12 = tdoa_dist_diff(target_true, s1, s2)
+delta_d13 = tdoa_dist_diff(target_true, s1, s3)
 
 # ------------------- 绘图 -------------------
 fig, ax = plt.subplots(figsize=(8, 7))
-ax.set_xlim(-10, 10)
-ax.set_ylim(-8, 8)
+ax.set_xlim(-20, 20)
+ax.set_ylim(-20, 20)
 ax.set_xlabel("x (km)")
 ax.set_ylabel("y (km)")
 ax.grid(True, alpha=0.3)
 ax.set_aspect('equal')
 
-# 1. 焦点（蓝色圆点，标注站1/站2）
-ax.plot(F1[0], F1[1], 'bo', markersize=10)
-ax.plot(F2[0], F2[1], 'bo', markersize=10)
-# 右侧焦点标注：站1 F₁（放在圆点右下方，避免遮挡）
-ax.text(F1[0] + 0.8, F1[1] - 1.2, "站1 F₁", color='blue', fontsize=11, ha='center', weight='bold')
-# 左侧焦点标注：站2 F₂（放在圆点左下方）
-ax.text(F2[0] - 0.8, F2[1] - 1.2, "站2 F₂", color='blue', fontsize=11, ha='center', weight='bold')
+# 侦察站
+ax.plot(x1, y1, 'o', color='blue', markersize=10)
+ax.plot(x2, y2, 'o', color='blue', markersize=10)
+ax.plot(x3, y3, 'o', color='blue', markersize=10)
+ax.text(x1, y1-1.2, "侦察站1", color='blue', fontsize=10, ha='center', weight='bold')
+ax.text(x2, y2-1.2, "侦察站2", color='blue', fontsize=10, ha='center', weight='bold')
+ax.text(x3, y3-1.2, "侦察站3", color='blue', fontsize=10, ha='center', weight='bold')
 
-if valid:
-    # 已绘制双曲线
-    if len(right_part) > 0:
-        ax.plot(right_part[:,0], right_part[:,1], 'r-', linewidth=2, label='双曲线 (右支)')
-    if len(left_part) > 0:
-        ax.plot(left_part[:,0], left_part[:,1], 'r-', linewidth=2, label='双曲线 (左支)')
-    
-    # 未绘制部分（灰色虚线）
-    if progress < 1.0:
-        if len(right_branch) > 0:
-            ax.plot(right_branch[:,0], right_branch[:,1], 'gray', linewidth=1, alpha=0.3, linestyle='--')
-        if len(left_branch) > 0:
-            ax.plot(left_branch[:,0], left_branch[:,1], 'gray', linewidth=1, alpha=0.3, linestyle='--')
-    
-    # 实轴和虚轴
-    if show_axes:
-        v_right_std = np.array([a, 0])
-        v_left_std = np.array([-a, 0])
-        v_right = std_to_world(v_right_std.reshape(1,2))[0]
-        v_left = std_to_world(v_left_std.reshape(1,2))[0]
-        ax.plot([v_left[0], v_right[0]], [v_left[1], v_right[1]], 'k-', linewidth=1.5, alpha=0.7, label='实轴')
-        perp = np.array([-direction[1], direction[0]])
-        end1 = center + perp * b
-        end2 = center - perp * b
-        ax.plot([end1[0], end2[0]], [end1[1], end2[1]], 'k--', linewidth=1.2, alpha=0.7, label='虚轴')
-        ax.plot(v_right[0], v_right[1], 'ko', markersize=4)
-        ax.plot(v_left[0], v_left[1], 'ko', markersize=4)
-        ax.plot(center[0], center[1], 'k+', markersize=8, mew=1.5)
-    
-    # 目标点（绿色圆点）及其标注
-    if P is not None:
-        ax.plot(P[0], P[1], 'go', markersize=10, label='目标')
-        # 标注文字放在点的右上方，加白色背景框避免被线条遮挡
-        ax.text(P[0] + 0.8, P[1] + 0.8, "目标", color='green', fontsize=12, weight='bold',
-                bbox=dict(boxstyle='round,pad=0.2', facecolor='white', edgecolor='none', alpha=0.7))
-        # 虚线连接到两个焦点
-        ax.plot([P[0], F1[0]], [P[1], F1[1]], 'g--', linewidth=1.5, alpha=0.8)
-        ax.plot([P[0], F2[0]], [P[1], F2[1]], 'g--', linewidth=1.5, alpha=0.8)
-        # 显示距离差数值（放在点下方，避免与标注重叠）
-        ax.text(P[0], P[1] - 1.2, f"|PF₁-PF₂| = {actual_diff:.2f} km", color='green', fontsize=9,
-                ha='center', bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
-    
-    # 参数信息框
-    info_text = f"距离差常数 = {distance_diff:.2f} km\n半实轴 a = {a:.2f}\n半焦距 c = {c:.2f}\n半虚轴 b = {b:.2f}"
-    ax.text(0.05, 0.95, info_text, transform=ax.transAxes, fontsize=9,
-            verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+# 真实目标
+ax.plot(true_x, true_y, 'r*', markersize=18, label='真实目标')
+ax.text(true_x + 1.0, true_y + 1.2, "目标点", color='red', fontsize=10, ha='left', weight='bold')
+
+# 绘制双曲线
+grid_res = 100
+x_grid = np.linspace(-20, 20, grid_res)
+y_grid = np.linspace(-20, 20, grid_res)
+X, Y = np.meshgrid(x_grid, y_grid)
+
+dist_diff12 = np.hypot(X - s2[0], Y - s2[1]) - np.hypot(X - s1[0], Y - s1[1])
+dist_diff13 = np.hypot(X - s3[0], Y - s3[1]) - np.hypot(X - s1[0], Y - s1[1])
+
+ax.contour(X, Y, dist_diff12, levels=[delta_d12], colors='red', linewidths=2, linestyles='-')
+ax.contour(X, Y, dist_diff13, levels=[delta_d13], colors='green', linewidths=2, linestyles='-')
+
+# 图例
+ax.plot([], [], color='red', linewidth=2, label=f'双曲线 (站1-站2) 距离差 = {delta_d12:.2f} km')
+ax.plot([], [], color='green', linewidth=2, label=f'双曲线 (站1-站3) 距离差 = {delta_d13:.2f} km')
+
+# 估计点（紫色）
+est_pos = find_hyperbola_intersection(s1, s2, s3, delta_d12, delta_d13)
+if est_pos is not None:
+    ax.plot(est_pos[0], est_pos[1], 'o', color='purple', markersize=10, label='TDOA估计位置')
+    ax.text(est_pos[0] - 1.5, est_pos[1] - 1.2, "估计点", color='purple', fontsize=10, ha='center', weight='bold')
+    error = np.hypot(est_pos[0]-true_x, est_pos[1]-true_y)
+    st.sidebar.metric("📍 定位误差", f"{error:.2f} km")
 else:
-    ax.text(0.1, 0.5, "参数不合理：距离差 ≥ 两焦点距离，无法形成双曲线", transform=ax.transAxes, color='red')
+    st.sidebar.warning("⚠️ 未找到交点，请调整站址避免三站共线")
 
 ax.legend(loc='upper right')
 st.pyplot(fig, use_container_width=True)
 
-# ------------------- 教学说明 -------------------
-with st.expander("📖 双曲线几何定义与 TDOA 原理衔接（点击展开）"):
-    st.markdown(r"""
-    - **双曲线定义**：平面内到两个定点（焦点）的距离之差的绝对值为常数（$2a$，且 $2a < |F_1F_2|$）的点的轨迹。  
-    - **实轴**：连接两顶点的线段，长度 $2a$。  
-    - **虚轴**：通过中心垂直于实轴的线段，长度 $2b$，满足 $c^2 = a^2 + b^2$。  
-    - **TDOA 定位基础**：两个侦察站 $F_1, F_2$ 测得到目标的距离差 $\Delta d = c \cdot \Delta t$ → 目标位于以 $F_1, F_2$ 为焦点的双曲线上。引入第三个站，两条双曲线相交即得目标位置。  
-    - **操作提示**：① 调整距离差常数，观察双曲线形状变化；② 拖动“绘制进度”，观察目标点（绿色圆点）移动时虚线长度差始终等于常数；③ 可勾选/取消显示实轴虚轴。
+# 教学说明（已删除几何稀释效应）
+with st.expander("📖 TDOA双曲线定位原理（点击展开）"):
+    st.markdown("""
+    - **到达时间差（TDOA）** → **距离差**：`Δd = c · Δt`（本演示中设 `c=1 km/μs` 简化）。  
+    - **双曲线定义**：到两个固定点距离差为恒定值的所有点构成一条双曲线。  
+    - **两条双曲线**（来自站1-站2 和 站1-站3）的交点就是目标位置。  
+    - **操作提示**：拖动左侧滑块调整侦察站或目标位置，观察双曲线实时变化，估计点（紫色圆）应逼近真实目标（红色五角星）。
     """)
+
+# 注释掉侧边栏的访问链接部分
+# st.sidebar.markdown("---")
+# st.sidebar.subheader("📱 学生扫码访问")
+# app_url = "https://你的应用名.streamlit.app"
+# st.sidebar.info(f"复制此链接生成二维码：\n\n`{app_url}`")
