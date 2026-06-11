@@ -1,11 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Jun  8 15:45:40 2026
-
-@author: ASUS
-"""
-
-# -*- coding: utf-8 -*-
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,7 +18,6 @@ plt.rcParams['axes.unicode_minus'] = False
 # ------------------- 页面配置 -------------------
 st.set_page_config(page_title="TDOA双曲线定位", layout="wide")
 
-# 修正标题被遮住的问题：增加上边距和行高
 st.markdown("""
 <style>
     h1 {
@@ -136,7 +128,7 @@ dist_diff13 = np.hypot(X - s3[0], Y - s3[1]) - np.hypot(X - s1[0], Y - s1[1])
 ax.contour(X, Y, dist_diff12, levels=[delta_d12], colors='red', linewidths=2, linestyles='-')
 ax.contour(X, Y, dist_diff13, levels=[delta_d13], colors='green', linewidths=2, linestyles='-')
 
-# 图例
+# 图例（移至左下角，半透明避免遮挡）
 ax.plot([], [], color='red', linewidth=2, label=f'双曲线 (站1-站2) 距离差 = {delta_d12:.2f} km')
 ax.plot([], [], color='green', linewidth=2, label=f'双曲线 (站1-站3) 距离差 = {delta_d13:.2f} km')
 
@@ -150,10 +142,11 @@ if est_pos is not None:
 else:
     st.sidebar.warning("⚠️ 未找到交点，请调整站址避免三站共线")
 
-ax.legend(loc='upper right')
+# 图例放置于左下角，并设置半透明背景，避免遮挡曲线
+ax.legend(loc='lower left', framealpha=0.7, fontsize=9)
 st.pyplot(fig, use_container_width=True)
 
-# 教学说明（已删除几何稀释效应）
+# 教学说明
 with st.expander("📖 TDOA双曲线定位原理（点击展开）"):
     st.markdown("""
     - **到达时间差（TDOA）** → **距离差**：`Δd = c · Δt`（本演示中设 `c=1 km/μs` 简化）。  
