@@ -15,19 +15,39 @@ else:
     st.warning("字体文件 simhei.ttf 未找到，将使用默认字体（可能显示方块）")
 plt.rcParams['axes.unicode_minus'] = False
 
-# ------------------- 页面配置 -------------------
+# ------------------- 页面配置（优化标题样式，解决遮挡和间距问题） -------------------
 st.set_page_config(page_title="TDOA双曲线定位", layout="wide")
 
 st.markdown("""
 <style>
+    /* 移除默认的header顶部留白，让标题紧贴顶部 */
+    header {
+        visibility: hidden;
+        height: 0;
+    }
+    .main > div {
+        padding-top: 0rem;
+    }
+    /* 标题居中，紧凑，完整显示 */
     h1 {
         font-size: 1.8rem !important;
-        margin-top: 0.5rem !important;
+        text-align: center !important;
+        margin-top: 0.2rem !important;
+        margin-bottom: 0.1rem !important;
+        line-height: 1.2 !important;
+        font-weight: bold;
+    }
+    /* 副标题（markdown段落）居中，紧凑 */
+    .stMarkdown p {
+        text-align: center !important;
+        margin-top: 0rem !important;
         margin-bottom: 0.2rem !important;
         line-height: 1.2 !important;
+        font-size: 1rem;
     }
+    /* 主容器顶部内边距减小 */
     .block-container {
-        padding-top: 0.5rem !important;
+        padding-top: 0.2rem !important;
         padding-bottom: 0rem !important;
     }
 </style>
@@ -128,7 +148,7 @@ dist_diff13 = np.hypot(X - s3[0], Y - s3[1]) - np.hypot(X - s1[0], Y - s1[1])
 ax.contour(X, Y, dist_diff12, levels=[delta_d12], colors='red', linewidths=2, linestyles='-')
 ax.contour(X, Y, dist_diff13, levels=[delta_d13], colors='green', linewidths=2, linestyles='-')
 
-# 图例（移至左下角，半透明避免遮挡）
+# 图例（左下角，半透明）
 ax.plot([], [], color='red', linewidth=2, label=f'双曲线 (站1-站2) 距离差 = {delta_d12:.2f} km')
 ax.plot([], [], color='green', linewidth=2, label=f'双曲线 (站1-站3) 距离差 = {delta_d13:.2f} km')
 
@@ -142,7 +162,6 @@ if est_pos is not None:
 else:
     st.sidebar.warning("⚠️ 未找到交点，请调整站址避免三站共线")
 
-# 图例放置于左下角，并设置半透明背景，避免遮挡曲线
 ax.legend(loc='lower left', framealpha=0.7, fontsize=9)
 st.pyplot(fig, use_container_width=True)
 
