@@ -15,41 +15,23 @@ else:
     st.warning("字体文件 simhei.ttf 未找到，将使用默认字体（可能显示方块）")
 plt.rcParams['axes.unicode_minus'] = False
 
-# ------------------- 页面配置（强制侧边栏展开，优化标题样式） -------------------
-st.set_page_config(
-    page_title="TDOA双曲线定位",
-    layout="wide",
-    initial_sidebar_state="expanded"   # 确保侧边栏默认展开
-)
+# ------------------- 页面配置 -------------------
+st.set_page_config(page_title="TDOA双曲线定位", layout="wide")
 
+# 优化标题样式：居中、紧凑，不隐藏任何原生组件
 st.markdown("""
 <style>
-    /* 只隐藏顶部栏的菜单按钮等，但保留侧边栏不受影响 */
-    header {
-        visibility: hidden;
-        height: 0;
-    }
-    /* 确保侧边栏容器正常显示 */
-    [data-testid="stSidebar"] {
-        visibility: visible;
-        height: 100%;
-    }
-    .main > div {
-        padding-top: 0rem;
-    }
     h1 {
         font-size: 1.8rem !important;
         text-align: center !important;
         margin-top: 0.2rem !important;
         margin-bottom: 0.1rem !important;
         line-height: 1.2 !important;
-        font-weight: bold;
     }
     .stMarkdown p {
         text-align: center !important;
         margin-top: 0rem !important;
         margin-bottom: 0.2rem !important;
-        line-height: 1.2 !important;
         font-size: 1rem;
     }
     .block-container {
